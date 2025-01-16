@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "31837d992993740df6875cdbee51ab44adef4b1e6387ba3933deb91746dd2311"
+            "sha256": "4d59fdbb61d0cdf3d97cd1c40dbab6c392a54297fbd0b51b9c714ae37cff06f8"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -113,6 +113,14 @@
             ],
             "markers": "python_version >= '3.9'",
             "version": "==1.3.2"
+        },
+        "aiosqlite": {
+            "hashes": [
+                "sha256:36a1deaca0cac40ebe32aac9977a6e2bbc7f5189f23f4a54d5908986729e5bd6",
+                "sha256:6d35c8c256637f4672f843c31021464090805bf925385ac39473fb16eaaca3d7"
+            ],
+            "markers": "python_version >= '3.8'",
+            "version": "==0.20.0"
         },
         "annotated-types": {
             "hashes": [
@@ -634,6 +642,15 @@
             ],
             "markers": "python_full_version >= '3.9.0' and python_full_version < '4.0.0'",
             "version": "==2.0.10"
+        },
+        "langgraph-checkpoint-sqlite": {
+            "hashes": [
+                "sha256:47e6cd6a52f7c6daca3dde935fca1da6f298d0dfe4c772da20edf48a0e0b1306",
+                "sha256:93491d1e5058f96537caf463ef4f03a9d1b9028fa86025c7c3cccac21b3b83ad"
+            ],
+            "index": "pypi",
+            "markers": "python_full_version >= '3.9.0' and python_full_version < '4.0.0'",
+            "version": "==2.0.3"
         },
         "langgraph-sdk": {
             "hashes": [

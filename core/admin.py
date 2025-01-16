@@ -1,5 +1,7 @@
 from django.contrib import admin
-from .models import Thread, ThreadMessage
+from .models import Thread, ThreadMessage,Product
+
+
 
 class ThreadMessageInline(admin.TabularInline):
     model = ThreadMessage
@@ -14,3 +16,6 @@ class ThreadAdmin(admin.ModelAdmin):
 class ThreadMessageAdmin(admin.ModelAdmin):
     list_display = ('content', 'response', 'created_at', 'updated_at')
     search_fields = ('content', 'response')
+
+
+admin.site.register(Product)
