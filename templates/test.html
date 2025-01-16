@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Responses</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg">
+        <h1 class="text-xl font-bold mb-4">Chatbot Responses</h1>
+        <form method="post" class="mb-4">
+            {% csrf_token %}
+            <input type="text" name="user_input" placeholder="Type your question..." class="border border-gray-300 p-2 w-full rounded" required>
+            <button type="submit" class="mt-2 bg-blue-500 text-white p-2 rounded">Send</button>
+        </form>
+        <ul class="list-disc pl-5">
+            {% for response in responses %}
+                <li class="mb-2">{{ response }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>

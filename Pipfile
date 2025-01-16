@@ -6,6 +6,10 @@ name = "pypi"
 [packages]
 django = "*"
 python-dotenv = "*"
+langgraph = "*"
+langsmith = "*"
+langchain-openai = "*"
+langchain = "*"
 
 [dev-packages]
 
