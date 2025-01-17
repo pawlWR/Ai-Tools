@@ -2,9 +2,10 @@ from django.shortcuts import render
 import os
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
+from langgraph.constants import START
 from typing_extensions import TypedDict, Annotated
-from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph, END, add_messages
 from .models import Product
 import sqlite3
 from langchain_core.tools import tool
@@ -16,13 +17,12 @@ load_dotenv()
 
 # Define State
 class State(TypedDict):
-    messages: Annotated[list[BaseMessage], "append"]
+    messages: Annotated[list[BaseMessage], add_messages]
 
 # Tool to create product
 @tool
 def create_product(name: str, price: float) -> str:
-    """Create a Product with the given name and price."""
-    print('calling this toools,-----------------------------------------------------------')
+    """Create a Product with the given name and price. name and price is required, ask if name and price not given"""
     product = Product(name=name, price=price)
     product.save()
     return f"Product '{product.name}' created successfully."
@@ -31,7 +31,7 @@ def create_product(name: str, price: float) -> str:
 
 
 # Chatbot logic
-llm = ChatOpenAI(model="gpt-3.5-turbo", max_tokens=100, openai_api_key=os.getenv("OPENAI_KEY"),)
+llm = ChatOpenAI(model="gpt-4o-mini", max_tokens=100, openai_api_key=os.getenv("OPENAI_KEY"),)
 tools = [create_product]
 llm_with_tools = llm.bind_tools(tools)
 tool_node = ToolNode(tools)
@@ -42,10 +42,18 @@ def should_continue(state: State):
     if last_message.tool_calls:
         return "tools"
     return END
-
+# def should_continue(state: State):
+#     messages = state["messages"]
+#     last_message = messages[-1]
+#
+#     if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+#         return "tools"
+#     elif last_message.role == "assistant":
+#         return "agent"
+#     return END
 
 # Invoke model and get AI response
-def call_model(state: State):
+def call_model(state: State) -> State:
     messages = state["messages"]
     response = llm_with_tools.invoke(messages)
     return {"messages": [response]}
@@ -65,7 +73,8 @@ graph_builder = StateGraph(State)
 # graph_builder.add_node("chatbot", chatbot)  # Chatbot node FIRST
 graph_builder.add_node("agent", call_model)   # Agent node THEN
 graph_builder.add_node("tools", tool_node)  # Tools node
-graph_builder.set_entry_point("agent")   # Set entry AFTER adding nodes
+graph_builder.add_edge(START, "agent")
+#graph_builder.set_entry_point("agent")   # Set entry AFTER adding nodes
 graph_builder.add_conditional_edges("agent", should_continue, ["tools", END])
 graph_builder.add_edge("tools", "agent")
 
