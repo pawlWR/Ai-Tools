@@ -28,12 +28,24 @@ def create_product(name: str, price: float) -> str:
     product.save()
     return f"Product '{product.name}' created successfully."
 
+# Tool to list all products
+@tool
+def list_products() -> str:
+    """List all products. show only name and price.
+       give response in html format
+    """
+    products = Product.objects.all()
+    if not products:
+        return "No products found."
+
+
+    return f"Products:{products.values_list('name', 'price')}"
 # State transition logic
 
 
 # Chatbot logic
 llm = ChatOpenAI(model="gpt-4o-mini", max_tokens=100, openai_api_key=os.getenv("OPENAI_KEY"),)
-tools = [create_product]
+tools = [create_product,list_products]
 llm_with_tools = llm.bind_tools(tools)
 tool_node = ToolNode(tools)
 
@@ -93,11 +105,17 @@ def test2(request):
             current_state = {"messages": messages}
             config = {"configurable": {"thread_id": 2}}
 
-            # django_saver.set_thread(config["configurable"]["thread_id"])
+
+            messages = [
+                {"role": "system", "content": "Please respond in HTML format."},
+            ] + messages
+            current_state = {"messages": messages}
+            config = {"configurable": {"thread_id": 2}}
 
             next_state = graph.invoke(current_state, config=config)
             
             ai_response = next_state["messages"][-1]
+            print(ai_response,'1111111111111111111111111111111111111111')
 
             if isinstance(ai_response, AIMessage):
                 messages.append(ai_response)
