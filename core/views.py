@@ -2,18 +2,19 @@ from django.shortcuts import render
 import os
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
-from langgraph.constants import START
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from typing_extensions import TypedDict, Annotated
-from langgraph.graph import StateGraph, END, add_messages
-from .models import Product
+from langgraph.graph import StateGraph, END, add_messages,START
+from .models import Product, Checkpoint
 import sqlite3
 from langchain_core.tools import tool
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.sqlite import SqliteSaver
-
+from .utils  import DjangoSaver
+from django.http import HttpResponse
 # Load environment variables
 load_dotenv()
+
 
 # Define State
 class State(TypedDict):
@@ -22,7 +23,7 @@ class State(TypedDict):
 # Tool to create product
 @tool
 def create_product(name: str, price: float) -> str:
-    """Create a Product with the given name and price. name and price is required, ask if name and price not given"""
+    """Create a Product with the given name and price."""
     product = Product(name=name, price=price)
     product.save()
     return f"Product '{product.name}' created successfully."
@@ -42,15 +43,7 @@ def should_continue(state: State):
     if last_message.tool_calls:
         return "tools"
     return END
-# def should_continue(state: State):
-#     messages = state["messages"]
-#     last_message = messages[-1]
-#
-#     if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-#         return "tools"
-#     elif last_message.role == "assistant":
-#         return "agent"
-#     return END
+
 
 # Invoke model and get AI response
 def call_model(state: State) -> State:
@@ -79,29 +72,47 @@ graph_builder.add_conditional_edges("agent", should_continue, ["tools", END])
 graph_builder.add_edge("tools", "agent")
 
 # Set up SQLite memory saving
-conn = sqlite3.connect("database.sqlite", check_same_thread=False)
-memory = SqliteSaver(conn)
-graph = graph_builder.compile(checkpointer=memory)
+# conn = sqlite3.connect("db.sqlite3", check_same_thread=False)
+# memory = SqliteSaver(conn)
+# graph = graph_builder.compile(checkpointer=memory)
+
+
+django_saver = DjangoSaver()
+graph = graph_builder.compile(checkpointer=django_saver)
 
 # View handling user input
 def test2(request):
     messages = []
+    responses = []
 
     if request.method == "POST":
-        user_input = request.POST.get('user_input', '')
-        messages.append(HumanMessage(content=user_input))
+        try:
+            user_input = request.POST.get('user_input', '')
+            messages.append(HumanMessage(content=user_input))
 
-        current_state = {"messages": messages}
-        config = {"configurable": {"thread_id": 2}}
+            current_state = {"messages": messages}
+            config = {"configurable": {"thread_id": 2}}
 
-        next_state = graph.invoke(current_state, config=config)
-        ai_response = next_state["messages"][-1]
+            # django_saver.set_thread(config["configurable"]["thread_id"])
 
-        if isinstance(ai_response, AIMessage):
-            messages.append(ai_response)
+            next_state = graph.invoke(current_state, config=config)
+            
+            ai_response = next_state["messages"][-1]
 
-        responses = [ai_response.content] if isinstance(ai_response, AIMessage) else []
-    else:
-        responses = []
+            if isinstance(ai_response, AIMessage):
+                messages.append(ai_response)
+                responses = [ai_response.content]
+
+        except Exception as e:
+            responses = [f"Error: {str(e)}"]
 
     return render(request, 'test2.html', {'responses': responses})
+
+
+
+
+def test_check(request):
+    checkpoint = Checkpoint.objects.all()
+    for c in checkpoint:
+        print(c.metadata,'-----------------------------------')
+    return HttpResponse(f"Checkpoint: {checkpoint.checkpoint}<br>Metadata: {checkpoint.metadata}")

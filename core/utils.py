@@ -1,37 +1,83 @@
-def test(request):
-    if 'thread_id' not in request.session:
-        thread = Thread.objects.create(title="Chat Session")
-        request.session['thread_id'] = thread.id
+from django.db import transaction
+from typing import Any, List, Tuple
 
-    thread_id = request.session['thread_id']
-    thread = Thread.objects.get(id=thread_id)
+from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.base import Checkpoint, CheckpointMetadata, CheckpointTuple,BaseCheckpointSaver
 
-    if request.method == "POST":
-        user_input = request.POST.get('user_input', '')
+from .models import Checkpoint
 
-        # Load messages from session, converting dicts to messages
-        message_dicts = request.session.get(f"messages_{thread_id}", [])
-        messages = [dict_to_message(msg) for msg in message_dicts]
+class DjangoSaver(BaseCheckpointSaver):
+    def get_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
+        thread_id = config["configurable"]["thread_id"]
+        thread_ts = config["configurable"].get("thread_ts")
 
-        messages.append(HumanMessage(content=user_input))
-        current_state = {"messages": messages}
+        if thread_ts:
+            checkpoint_obj = (
+                Checkpoint.objects.filter(thread_id=thread_id, checkpoint_id=thread_ts)
+                .values_list("checkpoint", "metadata", "checkpoint_id", "parent_checkpoint_id")
+                .first()
+            )
+        else:
+            checkpoint_obj = (
+                Checkpoint.objects.filter(thread_id=thread_id)
+                .order_by("-checkpoint_id")
+                .values_list("checkpoint", "metadata", "checkpoint_id", "parent_checkpoint_id")
+                .first()
+            )
 
-        next_state = graph.invoke(current_state)
-        ai_response = next_state["messages"][-1]
+        if checkpoint_obj:
+            checkpoint, metadata, checkpoint_id, parent_checkpoint_id = checkpoint_obj
+            if not config["configurable"].get("thread_ts"):
+                config = {
+                    "configurable": {
+                        "thread_id": thread_id,
+                        "thread_ts": checkpoint_id,
+                    }
+                }
 
-        if isinstance(ai_response, AIMessage):
-            ThreadMessage.objects.create(thread=thread, content=user_input, response=ai_response.content)
+            return CheckpointTuple(
+                config=config,
+                checkpoint=self.serde.loads(checkpoint) if checkpoint else None,
+                metadata=self.serde.loads(metadata) if metadata else None,
+                parent_config=(
+                    {
+                        "configurable": {
+                            "thread_id": thread_id,
+                            "thread_ts": parent_checkpoint_id,
+                        }
+                    }
+                    if parent_checkpoint_id
+                    else None
+                ),
+                pending_writes=[],  # Modify if pending writes are required
+            )
 
-        # Convert messages to dicts before saving to session
-        message_dicts = [message_to_dict(msg) for msg in next_state["messages"]]
-        request.session[f"messages_{thread_id}"] = message_dicts
+    def put(
+        self,
+        config: RunnableConfig,
+        checkpoint: Checkpoint,
+        metadata: CheckpointMetadata,
+        *args,  # Adding *args to capture any additional arguments passed
+        **kwargs  # Optional: to capture keyword arguments
+    ) -> RunnableConfig:
+        thread_id = config["configurable"]["thread_id"]
+        checkpoint_id = checkpoint["id"]
+        parent_checkpoint_id = config["configurable"].get("thread_ts")
 
-        responses = [ai_response.content] if isinstance(ai_response, AIMessage) else []
-    else:
-        # Load messages for initial GET request, converting dicts to messages
-        message_dicts = request.session.get(f"messages_{thread_id}", [])
-        messages = [dict_to_message(msg) for msg in message_dicts]
-        responses = [msg.content for msg in messages if isinstance(msg, AIMessage)]
+        Checkpoint.objects.update_or_create(
+            checkpoint_id=checkpoint_id,
+            defaults={
+                "thread_id": thread_id,
+                "checkpoint_ns": config.get("namespace", ""),
+                "parent_checkpoint_id": parent_checkpoint_id,
+                "type": checkpoint.get("type", ""),
+                "checkpoint": self.serde.dumps(checkpoint) if checkpoint else None,
+                "metadata": self.serde.dumps(metadata) if metadata else None,
+            },
+        )
+        return config
 
-    thread_messages = ThreadMessage.objects.filter(thread=thread)
-    return render(request, 'test.html', {'responses': responses, 'thread_messages': thread_messages})
+    def put_writes(
+        self, config: RunnableConfig, writes: List[Tuple[str, Any]], task_id: str
+    ) -> None:
+        pass  # Implement if needed based on writes behavior

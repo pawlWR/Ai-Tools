@@ -8,6 +8,9 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def __str__(self):
+        return self.name
+
 
 class Sales(models.Model):
     name = models.CharField(max_length=255)
@@ -36,3 +39,21 @@ class ThreadMessage(models.Model):
     response = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+
+class Checkpoint(models.Model):
+    thread_id = models.IntegerField(null=True, blank=True)
+    checkpoint_ns = models.TextField(default="")
+    checkpoint_id = models.TextField(primary_key=True)
+    parent_checkpoint_id = models.TextField(null=True, blank=True)
+    type = models.TextField()
+    checkpoint = models.BinaryField(null=True, blank=True)
+    metadata = models.BinaryField(null=True, blank=True)
+
+
+    def __str__(self):
+        return f"{self.checkpoint_id} (Version: {self.version})"
+    
+    
+
