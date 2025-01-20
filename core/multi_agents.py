@@ -102,7 +102,7 @@ def test2(request):
     if request.method == "POST":
         user_input = request.POST.get('user_input', '')
         messages.append(HumanMessage(content=user_input))
-        config = {"configurable": {"thread_id": 2}, "recursion_limit": 10}
+        config = {"configurable": {"thread_id": 2}, "recursion_limit": 20}
         current_state = {"messages": messages}
         next_state = compiled_supervisor.invoke(current_state, config=config)
 
