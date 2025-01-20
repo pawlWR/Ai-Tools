@@ -16,7 +16,9 @@
         </form>
         <ul class="list-disc pl-5">
             {% for response in responses %}
-                {{ response|safe }}
+                <div>
+                    {{ response|safe }} 
+                </div>
             {% endfor %}
         </ul>
     </div>

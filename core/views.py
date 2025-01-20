@@ -6,10 +6,8 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from typing_extensions import TypedDict, Annotated
 from langgraph.graph import StateGraph, END, add_messages,START
 from .models import Product, Checkpoint
-import sqlite3
 from langchain_core.tools import tool
 from langgraph.prebuilt import ToolNode
-from langgraph.checkpoint.sqlite import SqliteSaver
 from .utils  import DjangoSaver
 from django.http import HttpResponse
 # Load environment variables

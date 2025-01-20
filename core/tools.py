@@ -1,55 +1,79 @@
-# from langchain_core.tools import tool
-# from .models import Product
+from langchain_core.tools import tool
+from .models import Product, Sales, SalesItem
 
-# # Tool to create a product
-# @tool(name="create_product", description="Create a new product")
-# def create_product(name: str, price: float) -> str:
-#     """Create a new product."""
-#     product = Product(name=name, price=price)
-#     product.save()
-#     return f"Product '{product.name}' created successfully."
+@tool
+def create_product(name: str, price: float) -> str:
+    """
+    Creates a product with the given name and price, handling potential errors.
 
-# # Tool to read a product
-# @tool(name="read_product", description="Retrieve a product by its ID")
-# def read_product(product_id: int) -> str:
-#     """Retrieve a product by its ID."""
-#     try:
-#         product = Product.objects.get(id=product_id)
-#         return f"Product ID: {product.id}, Name: {product.name}, Price: {product.price}"
-#     except Product.DoesNotExist:
-#         return f"Product with ID {product_id} does not exist."
+    Args:
+        name (str): The name of the product.
+        price (float): The price of the product.
 
-# # Tool to update a product
-# @tool(name="update_product", description="Update an existing product")
-# def update_product(product_id: int, name: str, price: float) -> str:
-#     """Update an existing product."""
-#     try:
-#         product = Product.objects.get(id=product_id)
-#         product.name = name
-#         product.price = price
-#         product.save()
-#         return f"Product '{product.name}' updated successfully."
-#     except Product.DoesNotExist:
-#         return f"Product with ID {product_id} does not exist."
+    Returns:
+        str: A success message if the product is created, or an error message.
+    """
+    try:
+        product = Product(name=name, price=price)
+        product.save()
+        return f"Product '{product.name}' created successfully."
+    except Exception as e:
+        return f"Error creating product: {str(e)}"
 
-# # Tool to delete a product
-# @tool(name="delete_product", description="Delete a product by its ID")
-# def delete_product(product_id: int) -> str:
-#     """Delete a product by its ID."""
-#     try:
-#         product = Product.objects.get(id=product_id)
-#         product.delete()
-#         return f"Product '{product.name}' deleted successfully."
-#     except Product.DoesNotExist:
-#         return f"Product with ID {product_id} does not exist."
+@tool
+def create_sales_with_items(name: str) -> str:
+    """
+    Creates a sale with the given name.
 
-# # Tool to list all products
-# @tool(name="list_products", description="List all products")
+    Args:
+        name (str): The name of the customer.
+
+    Returns:
+        str: A success message if the sale is created, or an error message.
+    """
+    try:
+        sales = Sales(name=name)
+        sales.save()
+        return f"Sales '{sales.name}' created successfully."
+    except Exception as e:
+        return f"Error creating sales: {str(e)}"
+    
+# @tool
 # def list_products() -> str:
-#     """List all products."""
+#     """
+#     Lists all products, formatting the output for better readability.
+
+#     Returns:
+#         str: A formatted list of products or a message if no products are found.
+#     """
 #     products = Product.objects.all()
 #     if not products:
 #         return "No products found."
-    
-#     product_list = "\n".join([f"ID: {p.id}, Name: {p.name}, Price: {p.price}" for p in products])
-#     return f"Products:\n{product_list}"
+
+#     product_list = []
+#     for product in products:
+#         product_list.append(f"- {product.name} (Price: ${product.price:.2f})")
+
+#     return "\n".join(product_list)
+
+
+
+# @tool
+# def list_sales_with_items() -> str:
+#     """
+#     Lists all sales, including customer details and product information for each sale item.
+
+#     Returns:
+#         str: A formatted list of sales or a message if no sales are found.
+#     """
+#     sales = Sales.objects.all()
+#     if not sales:
+#         return "No sales found."
+
+#     sales_list = []
+#     for sale in sales:
+#         sales_items = SalesItem.objects.filter(sales=sale).values_list('product__name', 'quantity')
+#         items_str = ", ".join([f"{name} x {quantity}" for name, quantity in sales_items])
+#         sales_list.append(f"- {sale.name} (Email: {sale.email}, Phone: {sale.phone}, Address: {sale.address}): Items: {items_str if items_str else 'No items'}")
+
+#     return "\n".join(sales_list)
