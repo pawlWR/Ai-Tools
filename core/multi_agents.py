@@ -83,13 +83,12 @@ def sales_node(state: MessagesState) -> Command[Literal["supervisor"]]:
 
 # Build the state graph connecting all nodes
 builder = StateGraph(MessagesState)
-
+builder.add_edge(START, "supervisor")  # Start with supervisor node
 builder.add_node("supervisor", supervisor_node)  # Add supervisor node
 builder.add_node("product_node", product_node)  # Add product node (correct name)
 builder.add_node("sales_node", sales_node)  # Add sales node (correct name)
 
 # Define edges between nodes
-builder.add_edge(START, "supervisor")  # Start with supervisor node
 
 
 conn = sqlite3.connect("db1.sqlite3", check_same_thread=False)
@@ -103,7 +102,7 @@ def test2(request):
     if request.method == "POST":
         user_input = request.POST.get('user_input', '')
         messages.append(HumanMessage(content=user_input))
-        config = {"configurable": {"thread_id": 2}}
+        config = {"configurable": {"thread_id": 2}, "recursion_limit": 10}
         current_state = {"messages": messages}
         next_state = compiled_supervisor.invoke(current_state, config=config)
 
