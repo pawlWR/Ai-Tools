@@ -83,15 +83,14 @@ def sales_node(state: MessagesState) -> Command[Literal["supervisor"]]:
 
 # Build the state graph connecting all nodes
 builder = StateGraph(MessagesState)
-builder.add_edge(START, "supervisor")  # Start with supervisor node
+
 builder.add_node("supervisor", supervisor_node)  # Add supervisor node
 builder.add_node("product_node", product_node)  # Add product node (correct name)
 builder.add_node("sales_node", sales_node)  # Add sales node (correct name)
 
 # Define edges between nodes
+builder.add_edge(START, "supervisor")  # Start with supervisor node
 
-# builder.add_edge("supervisor", "product_node")  # Supervisor routes to product node
-# builder.add_edge("supervisor", "sales_node")  # Supervisor routes to sales node
 
 conn = sqlite3.connect("db1.sqlite3", check_same_thread=False)
 memory = SqliteSaver(conn)
@@ -110,9 +109,8 @@ def test2(request):
 
         # Accessing AIMessage correctly
         ai_response = next_state["messages"][-1]
-        print(ai_response,'1111111111111111111111111111111111111111')
-        if isinstance(ai_response, AIMessage):
-            messages.append(ai_response)
-            responses.append(ai_response.content)  # Store the AI response content
 
+
+        messages.append(ai_response)
+        responses.append(ai_response.content)  # Store the AI response content
     return render(request, 'test2.html', {'responses': responses})
