@@ -7,15 +7,15 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 import os
 from dotenv import load_dotenv
 from langgraph.types import Command
-from typing import Literal
-from .tools import create_product, create_sales_with_items
+from typing import Literal, Union
+from .tools import create_product, create_sales_with_items , list_products
 from langgraph.prebuilt import create_react_agent
 import sqlite3
 from typing_extensions import TypedDict
+
 load_dotenv()
 
-# Initialize the language model with OpenAI API key
-llm = ChatOpenAI(model="gpt-4o-mini", max_tokens=100, openai_api_key=os.getenv("OPENAI_KEY"))
+llm = ChatOpenAI(model="gpt-4o-mini", max_tokens=30, openai_api_key=os.getenv("OPENAI_KEY"))
 
 def make_system_prompt(suffix: str) -> str:
     return (
@@ -23,23 +23,22 @@ def make_system_prompt(suffix: str) -> str:
         f"\n{suffix}"
     )
 
-members = ["product_node", "sales_node"]
-# Add FINISH as an option for task completion
+members = ["product_node", "sales_node", "general_node"]
 options = members + ["FINISH"]
 
 system_prompt = (
-    "You are a supervisor tasked with managing a conversation between the"
-    f" following workers: {members}. Given the following user request,"
-    " respond with the worker to act next. Each worker will perform a"
-    " task and respond with their results and status. When finished,"
-    " respond with FINISH."
+    "You are a supervisor tasked with routing conversations. "
+    "If the question is about products, route to 'product_node'. "
+    "If the question is about sales, route to 'sales_node'. "
+    "For general queries or normal conversation, route to 'general_node'. "
+    "When the conversation is complete, respond with 'FINISH'."
 )
 
 class Router(TypedDict):
-    """Worker to route to next. If no workers needed, route to FINISH."""
-    next: Literal["product_node", "sales_node"]
+    """Worker to route to next."""
+    next: Literal["product_node", "sales_node", "general_node", "FINISH"]
 
-def supervisor_node(state: MessagesState) -> Command[Literal["product_node", "sales_node", "__end__"]]:
+def supervisor_node(state: MessagesState) -> Command[Literal["product_node", "sales_node", "general_node", "__end__"]]:
     messages = [
         {"role": "system", "content": system_prompt},
     ] + state["messages"]
@@ -50,47 +49,62 @@ def supervisor_node(state: MessagesState) -> Command[Literal["product_node", "sa
         goto = END
     return Command(goto=goto)
 
-# Define product agent with specific tools and system prompt
+# Define general response agent for normal conversation
+def general_node(state: MessagesState) -> Command[Literal["__end__"]]:
+    messages = state["messages"]
+    response = llm.invoke(messages)
+    return Command(
+        goto=END,
+        update={
+            "messages": state["messages"] + [AIMessage(content=response.content)]
+        }
+    )
+
+# Product and sales agents remain the same
 product_agent = create_react_agent(
     llm,
-    tools=[create_product],
+    tools=[create_product,list_products],
     state_modifier=make_system_prompt("For product list, please return it in an HTML unordered list format.")
 )
 
-# Define sales agent with specific tools and system prompt
 sales_agent = create_react_agent(
     llm,
     tools=[create_sales_with_items],
-    state_modifier=make_system_prompt("When creating sales, also create sales items if the product exists in the database.")
+    state_modifier=make_system_prompt("When creating sales, also create sales items if the product exists in the database."
+                                      "for create sales item consider product  quantity 1.")
 )
 
-# Define nodes for product and sales agents
-def product_node(state: MessagesState) -> Command[Literal["supervisor"]]:
+def product_node(state: MessagesState) -> Command[Literal["__end__"]]:
     response = product_agent.invoke(state)
-    return Command(goto="supervisor",  update={
-            "messages": [
-                HumanMessage(content=response["messages"][-1].content)
-            ]
-        },)
+    return Command(
+        goto=END,
+        update={
+            "messages": state["messages"] + [AIMessage(content=response["messages"][-1].content)]
+        }
+    )
 
-def sales_node(state: MessagesState) -> Command[Literal["supervisor"]]:
+def sales_node(state: MessagesState) -> Command[Literal["__end__"]]:
     response = sales_agent.invoke(state)
-    return Command(goto="supervisor", update={
-            "messages": [
-                HumanMessage(content=response["messages"][-1].content)
-            ]
-        },)
+    return Command(
+        goto=END,
+        update={
+            "messages": state["messages"] + [AIMessage(content=response["messages"][-1].content)]
+        }
+    )
 
-# Build the state graph connecting all nodes
+# Build the optimized state graph
 builder = StateGraph(MessagesState)
-builder.add_edge(START, "supervisor")  # Start with supervisor node
-builder.add_node("supervisor", supervisor_node)  # Add supervisor node
-builder.add_node("product_node", product_node)  # Add product node (correct name)
-builder.add_node("sales_node", sales_node)  # Add sales node (correct name)
 
-# Define edges between nodes
+# Add all nodes
+builder.add_node("supervisor", supervisor_node)
+builder.add_node("product_node", product_node)
+builder.add_node("sales_node", sales_node)
+builder.add_node("general_node", general_node)
 
+# Define edges
+builder.add_edge(START, "supervisor")
 
+# Connect to database
 conn = sqlite3.connect("db1.sqlite3", check_same_thread=False)
 memory = SqliteSaver(conn)
 compiled_supervisor = builder.compile(checkpointer=memory)
@@ -102,14 +116,12 @@ def test2(request):
     if request.method == "POST":
         user_input = request.POST.get('user_input', '')
         messages.append(HumanMessage(content=user_input))
-        config = {"configurable": {"thread_id": 2}, "recursion_limit": 20}
+        config = {"configurable": {"thread_id": 2}, "recursion_limit": 10}  # Reduced recursion limit
         current_state = {"messages": messages}
         next_state = compiled_supervisor.invoke(current_state, config=config)
 
-        # Accessing AIMessage correctly
         ai_response = next_state["messages"][-1]
-
-
         messages.append(ai_response)
-        responses.append(ai_response.content)  # Store the AI response content
+        responses.append(ai_response.content)
+
     return render(request, 'test2.html', {'responses': responses})

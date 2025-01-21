@@ -23,7 +23,7 @@ class Sales(models.Model):
 class SalesItem(models.Model):
     sales = models.ForeignKey(Sales, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField()
+    quantity = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

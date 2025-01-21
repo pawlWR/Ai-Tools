@@ -1,79 +1,74 @@
 from langchain_core.tools import tool
 from .models import Product, Sales, SalesItem
+from typing import List, Dict,Any
 
 @tool
-def create_product(name: str, price: float) -> str:
-    """
-    Creates a product with the given name and price, handling potential errors.
+def create_product(name: str, price: float) -> Dict[str, Any]:
+    """Creates a product with the given name and price."""
+    if price < 0:
+        return {"success": False, "message": "Error: Price cannot be negative."}
 
-    Args:
-        name (str): The name of the product.
-        price (float): The price of the product.
-
-    Returns:
-        str: A success message if the product is created, or an error message.
-    """
     try:
         product = Product(name=name, price=price)
         product.save()
-        return f"Product '{product.name}' created successfully."
+        return {
+            "success": True,
+            "message": f"Product {product.name} created successfully with price ${price:.2f}.",
+            "product_id": product.id,
+            "product_name": product.name
+        }
     except Exception as e:
-        return f"Error creating product: {str(e)}"
+        return {"success": False, "message": f"Error creating product: {str(e)}"}
 
-@tool
-def create_sales_with_items(name: str) -> str:
-    """
-    Creates a sale with the given name.
+def create_sales_with_items(name: str, items: List[str] = []) -> Dict[str, Any]:
+    """Creates a sale with specified items.
 
     Args:
-        name (str): The name of the customer.
+        name (str): The name associated with the sale.
+        items (List[str], optional): A list of item names to include in the sale. Defaults to an empty list.
 
     Returns:
-        str: A success message if the sale is created, or an error message.
+        Dict[str, Any]: A dictionary containing the success status, message, and sale ID.
     """
-    try:
-        sales = Sales(name=name)
-        sales.save()
-        return f"Sales '{sales.name}' created successfully."
-    except Exception as e:
-        return f"Error creating sales: {str(e)}"
+    # Validate input
+    if not name:
+        return {
+            "success": False,
+            "message": "Sale name cannot be empty.",
+            "sale_id": None,
+        }
     
-# @tool
-# def list_products() -> str:
-#     """
-#     Lists all products, formatting the output for better readability.
+    # Create the sales record
+    sale = Sales(name=name)
+    sale.save()
 
-#     Returns:
-#         str: A formatted list of products or a message if no products are found.
-#     """
-#     products = Product.objects.all()
-#     if not products:
-#         return "No products found."
+    # Initialize a list to track added items
+    added_items = []
 
-#     product_list = []
-#     for product in products:
-#         product_list.append(f"- {product.name} (Price: ${product.price:.2f})")
+    if items:
+        for item_name in items:
+            product = Product.objects.filter(name__iexact=item_name).first()
+            if product:
+                SalesItem.objects.create(sales=sale, product=product)
+                added_items.append(item_name)
+            else:
+                print(f"Warning: Product '{item_name}' not found.")
 
-#     return "\n".join(product_list)
+    return {
+        "success": True,
+        "message": f"Sale created successfully for '{name}'" +
+                   (f" with items: {', '.join(added_items)}." if added_items else "."),
+        "sale_id": sale.id,
+    }
+
+@tool
+def list_products() -> str:
+    """Lists all products."""
+    products = Product.objects.all()
+    if not products:
+        return "No products found."
+
+    product_list = [f"- {product.name} (Price: ${product.price:.2f})" for product in products]
+    return "\n".join(product_list)
 
 
-
-# @tool
-# def list_sales_with_items() -> str:
-#     """
-#     Lists all sales, including customer details and product information for each sale item.
-
-#     Returns:
-#         str: A formatted list of sales or a message if no sales are found.
-#     """
-#     sales = Sales.objects.all()
-#     if not sales:
-#         return "No sales found."
-
-#     sales_list = []
-#     for sale in sales:
-#         sales_items = SalesItem.objects.filter(sales=sale).values_list('product__name', 'quantity')
-#         items_str = ", ".join([f"{name} x {quantity}" for name, quantity in sales_items])
-#         sales_list.append(f"- {sale.name} (Email: {sale.email}, Phone: {sale.phone}, Address: {sale.address}): Items: {items_str if items_str else 'No items'}")
-
-#     return "\n".join(sales_list)
