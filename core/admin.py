@@ -26,5 +26,8 @@ class SalesAdmin(admin.ModelAdmin):
     search_fields = ('name', 'email', 'phone', 'address')
 
 
-admin.site.register(Product)
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'price', 'created_at', 'updated_at')
+    search_fields = ('name', 'price')
 

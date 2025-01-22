@@ -8,14 +8,16 @@ import os
 from dotenv import load_dotenv
 from langgraph.types import Command
 from typing import Literal, Union
-from .tools import create_product, create_sales_with_items , list_products
+# from .tools import  create_sales_with_items 
 from langgraph.prebuilt import create_react_agent
 import sqlite3
 from typing_extensions import TypedDict
+from core.tools.products import *
+from core.prompts.products import make_product_prompt
 
 load_dotenv()
 
-llm = ChatOpenAI(model="gpt-4o-mini", max_tokens=30, openai_api_key=os.getenv("OPENAI_KEY"))
+llm = ChatOpenAI(model="gpt-4o-mini", max_tokens=100, openai_api_key=os.getenv("OPENAI_KEY"))
 
 def make_system_prompt(suffix: str) -> str:
     return (
@@ -63,13 +65,21 @@ def general_node(state: MessagesState) -> Command[Literal["__end__"]]:
 # Product and sales agents remain the same
 product_agent = create_react_agent(
     llm,
-    tools=[create_product,list_products],
-    state_modifier=make_system_prompt("For product list, please return it in an HTML unordered list format.")
+    tools = [
+        list_products,
+        create_product,
+        update_product,
+        delete_product,
+        bulk_create_products,
+        bulk_delete_products,
+    ],
+
+    state_modifier=make_product_prompt("")
 )
 
 sales_agent = create_react_agent(
     llm,
-    tools=[create_sales_with_items],
+    tools=[],
     state_modifier=make_system_prompt("When creating sales, also create sales items if the product exists in the database."
                                       "for create sales item consider product  quantity 1.")
 )

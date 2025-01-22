@@ -5,3 +5,7 @@ db.sqlite3
 staticfiles/
 
 *.sqlite3
+
+db1.sqlite3
+db1.sqlite3-shm
+db1.sqlite3-wal
