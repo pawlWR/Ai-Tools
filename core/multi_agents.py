@@ -15,7 +15,7 @@ from typing_extensions import TypedDict
 from core.tools.products import *
 from core.tools.sales import *
 from core.prompts.products import make_product_prompt
-from core.prompts.sales import make_system_prompt
+from core.prompts.sales import make_sales_prompt
 
 load_dotenv()
 
@@ -92,7 +92,7 @@ sales_agent = create_react_agent(
         list_sales_detailed,
     ],
 
-    state_modifier=make_system_prompt("")
+    state_modifier=make_sales_prompt("")
 )
 
 def product_node(state: MessagesState) -> Command[Literal["__end__"]]:
