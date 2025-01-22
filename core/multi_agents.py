@@ -13,7 +13,9 @@ from langgraph.prebuilt import create_react_agent
 import sqlite3
 from typing_extensions import TypedDict
 from core.tools.products import *
+from core.tools.sales import *
 from core.prompts.products import make_product_prompt
+from core.prompts.sales import make_system_prompt
 
 load_dotenv()
 
@@ -79,9 +81,18 @@ product_agent = create_react_agent(
 
 sales_agent = create_react_agent(
     llm,
-    tools=[],
-    state_modifier=make_system_prompt("When creating sales, also create sales items if the product exists in the database."
-                                      "for create sales item consider product  quantity 1.")
+    tools = [
+        create_sales,
+        update_sales,
+        delete_sales,
+        create_sales_item,
+        update_sales_item,
+        delete_sales_item,
+        list_sales,
+        list_sales_detailed,
+    ],
+
+    state_modifier=make_system_prompt("")
 )
 
 def product_node(state: MessagesState) -> Command[Literal["__end__"]]:

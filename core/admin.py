@@ -22,7 +22,7 @@ class SalesItemInline(admin.TabularInline):
 @admin.register(Sales)
 class SalesAdmin(admin.ModelAdmin):
     inlines = [SalesItemInline]
-    list_display = ('name', 'email', 'phone', 'address', 'created_at', 'updated_at')
+    list_display = ('id', 'name', 'email', 'phone', 'address', 'created_at', 'updated_at')
     search_fields = ('name', 'email', 'phone', 'address')
 
 
