@@ -1,30 +1,100 @@
-<!-- assistant.html -->
 <!DOCTYPE html>
 <html>
 <head>
     <title>AI Assistant</title>
     <style>
-        .chat-container { max-width: 800px; margin: 2rem auto; }
-        .response-box { padding: 1rem; margin: 1rem 0; border: 1px solid #ddd; border-radius: 8px; }
-        .user-input { width: 100%; padding: 0.8rem; margin: 1rem 0; }
+        .chat-container { 
+            max-width: 800px; 
+            margin: 2rem auto; 
+            padding: 0 1rem;
+        }
+        .response-box { 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .user-input { 
+            width: 100%; 
+            padding: 0.8rem; 
+            margin: 1rem 0; 
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .loading { 
+            display: none; 
+            margin: 1rem 0; 
+            color: #666;
+        }
+        .current-response {
+            min-height: 20px;
+        }
     </style>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 </head>
 <body>
     <div class="chat-container">
         <h1>Multi-Agent AI Assistant</h1>
-        
-        <form method="POST">
+
+        <form id="chat-form">
             {% csrf_token %}
-            <input type="text" name="user_input" class="user-input" 
-                   value="{{ last_query }}" placeholder="Type your question...">
+            <input type="text" id="user-input" name="user_input" class="user-input" placeholder="Type your question...">
             <button type="submit" style="padding: 0.8rem;">Ask</button>
         </form>
 
-        {% for response in responses %}
-            <div class="response-box">
-                {{ response|linebreaks }}
-            </div>
-        {% endfor %}
+        <div class="loading" id="loading">Thinking...</div>
+        <div id="responses"></div>
     </div>
+
+    <script>
+        $(document).ready(function () {
+            $('#chat-form').on('submit', function (event) {
+                event.preventDefault();
+                const userInput = $('#user-input').val().trim();
+                if (!userInput) return;
+
+                $('#loading').show();
+                $('#user-input').val(''); // Clear input after sending
+                
+                // Add user message
+                $('#responses').append(
+                    `<div class="response-box">User: ${userInput}</div>`
+                );
+                
+                // Create a new response box for the AI response
+                const responseBox = $('<div class="response-box">AI: <span class="current-response"></span></div>');
+                $('#responses').append(responseBox);
+                const currentResponse = responseBox.find('.current-response');
+
+                const eventSource = new EventSource(`/test2?user_input=${encodeURIComponent(userInput)}`);
+                
+                let currentText = '';
+                
+                eventSource.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.response) {
+                            currentText += data.response;
+                            currentResponse.text(currentText);
+                        }
+                    } catch (error) {
+                        console.error('Invalid JSON:', error);
+                    }
+                };
+
+                eventSource.onerror = function(error) {
+                    console.error('EventSource error:', error);
+                    eventSource.close();
+                    $('#loading').hide();
+                };
+
+                eventSource.onclose = function() {
+                    $('#loading').hide();
+                };
+            });
+        });
+    </script>
 </body>
 </html>
